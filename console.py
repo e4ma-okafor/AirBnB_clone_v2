@@ -115,16 +115,48 @@ class HBNBCommand(cmd.Cmd):
 
     def do_create(self, args):
         """ Create an object of any class"""
-        if not args:
+        # split arguments by space to get class name
+        args = args.split()
+        # check if class name is missing or not in list of available classes
+        if args == []:
             print("** class name missing **")
             return
-        elif args not in HBNBCommand.classes:
+        if args[0] not in HBNBCommand.classes:
             print("** class doesn't exist **")
             return
-        new_instance = HBNBCommand.classes[args]()
-        storage.save()
+        else:
+            cls = args[0]
+        # if class does exist, create new instance
+        new_instance = HBNBCommand.classes[cls]()
+        # if more arguments, resets args without class name
+        if args[1]:
+            args = args[1:]
+        else:
+            # save before returning, in case using FileStorage
+            new_instance.save()
+            print(new_instance.id)
+            return
+        # loops through each argument, splitting into key/value pairs
+        for argument in args:
+            sa = argument.split("=")
+            key = sa[0]
+            value = sa[1]
+            # if there are underscores in value, changed to spaces
+            for i in range(len(value)):
+                if value[i] == "_":
+                    value = value[:i] + " " + value[i+1:]
+            # if there are quotes around key or value, trimmed to remove
+            if (key[0] == "'" and key[-1] == "'") or (
+                    key[0] == "\"" and key[-1] == "\""):
+                key = key[1:-1]
+            if (value[0] == "'" and value[-1] == "'") or (
+                    value[0] == "\"" and value[-1] == "\""):
+                value = value[1:-1]
+            # atrribute is set to that key in the dictionary of objects
+            setattr(new_instance, key, value)
+        # new object is saved after setting non-nullable attributes
+        new_instance.save()
         print(new_instance.id)
-        storage.save()
 
     def help_create(self):
         """ Help information for the create method """
@@ -154,8 +186,9 @@ class HBNBCommand(cmd.Cmd):
             return
 
         key = c_name + "." + c_id
+        __objects = storage.all()
         try:
-            print(storage._FileStorage__objects[key])
+            print(__objects[key])
         except KeyError:
             print("** no instance found **")
 
@@ -201,16 +234,17 @@ class HBNBCommand(cmd.Cmd):
         """ Shows all objects, or all objects of a class"""
         print_list = []
 
+        __objects = storage.all()
         if args:
             args = args.split(' ')[0]  # remove possible trailing args
             if args not in HBNBCommand.classes:
                 print("** class doesn't exist **")
                 return
-            for k, v in storage._FileStorage__objects.items():
+            for k, v in __objects.items():
                 if k.split('.')[0] == args:
                     print_list.append(str(v))
         else:
-            for k, v in storage._FileStorage__objects.items():
+            for k, v in __objects.items():
                 print_list.append(str(v))
 
         print(print_list)
@@ -223,7 +257,8 @@ class HBNBCommand(cmd.Cmd):
     def do_count(self, args):
         """Count current number of class instances"""
         count = 0
-        for k, v in storage._FileStorage__objects.items():
+        __objects = storage.all()
+        for k, v in __objects.items():
             if args == k.split('.')[0]:
                 count += 1
         print(count)
